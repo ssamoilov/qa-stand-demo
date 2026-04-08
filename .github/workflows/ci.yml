@@ -1,4 +1,4 @@
-name: 🧪 QA Test Pipeline
+name: QA Test Pipeline
 
 on:
   push:
@@ -9,63 +9,33 @@ on:
 
 jobs:
   test-stand:
-    name: 🚀 Deploy Test Stand & Run Tests
     runs-on: ubuntu-latest
     
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: 🏗️ Start test stand
+      - name: Start test stand
         run: |
-          echo "🚀 Запускаем тестовый стенд..."
           docker compose up -d --build
           docker compose ps
       
-      - name: ⏳ Wait for services to be ready
+      - name: Wait for services
         run: |
-          echo "⏳ Ожидаем готовности сервисов..."
           for i in {1..30}; do
-            if curl -s http://localhost:5000/health | grep -q "ok"; then
-              echo "✅ Приложение готово!"
+            if curl -s http://localhost:5000/health; then
+              echo "Services are ready!"
               exit 0
             fi
-            echo "   Ожидание... $i/30"
             sleep 2
           done
-          echo "❌ Таймаут ожидания приложения"
           exit 1
       
-      - name: 🧪 Run API tests
+      - name: Run tests
         run: |
-          echo "🔬 Запускаем автотесты..."
           cd tests
-          pip install -r requirements.txt
-          pytest test_api.py -v --tb=short
+          pip install pytest requests
+          pytest test_api.py -v
       
-      - name: 📊 Show test stand logs (if tests failed)
-        if: failure()
-        run: |
-          echo "📋 Логи приложения:"
-          docker compose logs app --tail=50
-          echo "📋 Логи БД:"
-          docker compose logs postgres --tail=20
-      
-      - name: 🧹 Cleanup test stand
+      - name: Cleanup
         if: always()
-        run: |
-          echo "🧹 Останавливаем и удаляем тестовый стенд..."
-          docker compose down -v
-      
-      - name: 📝 Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: |
-            tests/__pycache__/
-            .pytest_cache/
-          retention-days: 7
+        run: docker compose down -v
