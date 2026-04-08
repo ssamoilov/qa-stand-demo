@@ -1,0 +1,103 @@
+name: 🚀 Create Test Stand
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      stand_name:
+        description: '🔖 Имя стенда (например: feature-auth, regression-v2)'
+        required: true
+        type: string
+      duration:
+        description: '⏱️ Время жизни в минутах'
+        required: true
+        default: '60'
+        type: string
+      description:
+        description: '📝 Описание стенда'
+        required: false
+        type: string
+
+jobs:
+  create-stand:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # Максимум 6 часов
+    
+    # Создаем видимое окружение в GitHub
+    environment:
+      name: ${{ github.event.inputs.stand_name || github.event.issue.title }}
+      url: http://localhost:5000
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests pyyaml
+      
+      - name: Create stand
+        id: stand
+        run: |
+          STAND_NAME="${{ github.event.inputs.stand_name || github.event.issue.title }}"
+          DURATION="${{ github.event.inputs.duration || '60' }}"
+          
+          # Создаем стенд через скрипт
+          python3 .github/scripts/stand-manager.py create "$STAND_NAME" "$DURATION"
+          
+          # Получаем порт
+          PORT=$(python3 -c "import json; print(json.load(open('stands/$STAND_NAME/metadata.json'))['port'])")
+          
+          echo "stand_name=$STAND_NAME" >> $GITHUB_OUTPUT
+          echo "port=$PORT" >> $GITHUB_OUTPUT
+          echo "url=http://localhost:$PORT" >> $GITHUB_OUTPUT
+      
+      - name: Post comment to issue
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const standName = '${{ steps.stand.outputs.stand_name }}';
+            const standUrl = '${{ steps.stand.outputs.url }}';
+            const duration = '${{ github.event.inputs.duration || "60" }}';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ✅ Тестовый стенд создан!
+              
+              | Параметр | Значение |
+              |----------|----------|
+              | 📛 Имя стенда | **${standName}** |
+              | 🌐 URL | ${standUrl} |
+              | ⏱️ Время жизни | ${duration} минут |
+              | 🔗 Run ID | ${context.runId} |
+              
+              ### Что делать дальше:
+              1. Перейди по URL для тестирования
+              2. Используй API: \`curl ${standUrl}/health\`
+              3. Когда закончишь - удали стенд командой \`/destroy\`
+              
+              ### Стенд виден в Environments:
+              → Справа на главной странице репозитория
+              `
+            });
+      
+      - name: Update GitHub Environment
+        run: |
+          echo "✅ Стенд ${{ steps.stand.outputs.stand_name }} запущен"
+          echo "📍 URL: ${{ steps.stand.outputs.url }}"
+          
+          # Держим стенд живым указанное время
+          sleep ${{ github.event.inputs.duration || 60 * 60 }}
+      
+      - name: Auto cleanup
+        if: always()
+        run: |
+          python3 .github/scripts/stand-manager.py destroy "${{ steps.stand.outputs.stand_name }}"

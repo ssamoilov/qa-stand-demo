@@ -1,0 +1,46 @@
+name: 📋 List Test Stands
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'  # Каждые 30 минут
+
+jobs:
+  list-stands:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: List all stands
+        run: |
+          python3 .github/scripts/stand-manager.py list
+      
+      - name: Generate dashboard
+        run: |
+          cat > STAND_DASHBOARD.md << 'EOF'
+          # 📊 Тестовые стенды QA
+          
+          | Стенд | Статус | URL | Создан |
+          |-------|--------|-----|---------|
+          EOF
+          
+          for stand in stands/*/; do
+            if [ -f "$stand/metadata.json" ]; then
+              NAME=$(jq -r '.name' $stand/metadata.json)
+              URL=$(jq -r '.url' $stand/metadata.json)
+              CREATED=$(jq -r '.created_at' $stand/metadata.json)
+              echo "| $NAME | 🟢 Active | [$URL]($URL) | $CREATED |" >> STAND_DASHBOARD.md
+            fi
+          done
+      
+      - name: Upload dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: stand-dashboard
+          path: STAND_DASHBOARD.md

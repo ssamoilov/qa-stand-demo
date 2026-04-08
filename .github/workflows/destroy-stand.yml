@@ -1,0 +1,48 @@
+name: 🗑️ Destroy Test Stand
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      stand_name:
+        description: 'Имя стенда для удаления'
+        required: true
+        type: string
+
+jobs:
+  destroy-stand:
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: ${{ github.event.inputs.stand_name || github.event.issue.title }}
+      action: delete
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Destroy stand
+        run: |
+          STAND_NAME="${{ github.event.inputs.stand_name || github.event.issue.title }}"
+          python3 .github/scripts/stand-manager.py destroy "$STAND_NAME"
+      
+      - name: Post comment to issue
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🗑️ Стенд удален
+              
+              Тестовый стенд **${{ github.event.issue.title }}** успешно удален.
+              
+              Все ресурсы освобождены.`
+            });
