@@ -21,9 +21,9 @@ jobs:
       
       - name: 🏗️ Start test stand
         run: |
-          echo "�� Запускаем тестовый стенд..."
-          docker-compose up -d --build
-          docker-compose ps
+          echo "🚀 Запускаем тестовый стенд..."
+          docker compose up -d --build
+          docker compose ps
       
       - name: ⏳ Wait for services to be ready
         run: |
@@ -50,15 +50,15 @@ jobs:
         if: failure()
         run: |
           echo "📋 Логи приложения:"
-          docker-compose logs app --tail=50
+          docker compose logs app --tail=50
           echo "📋 Логи БД:"
-          docker-compose logs postgres --tail=20
+          docker compose logs postgres --tail=20
       
       - name: 🧹 Cleanup test stand
         if: always()
         run: |
           echo "🧹 Останавливаем и удаляем тестовый стенд..."
-          docker-compose down -v
+          docker compose down -v
       
       - name: 📝 Upload test results
         if: always()
