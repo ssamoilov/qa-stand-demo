@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: app/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://qa_user:qa_pass@postgres:5432/testdb
+    depends_on:
+      - postgres
+  
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: qa_user
+      POSTGRES_PASSWORD: qa_pass
+    volumes:
+      - ../app/init_db.sql:/docker-entrypoint-initdb.d/init.sql

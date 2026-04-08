@@ -1,0 +1,13 @@
+{
+    "name": "QA Test Stand",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspace",
+    "forwardPorts": [5000],
+    "portsAttributes": {
+      "5000": {
+        "label": "Test Stand",
+        "onAutoForward": "notify"
+      }
+    }
+  }
